@@ -6,7 +6,9 @@
 #pragma once
 
 #include "targetver.h"
+
 #include "monitor.h"
+#include <Windows.h>
 
 #include <stdio.h>
 #include <tchar.h>
