@@ -3,55 +3,57 @@
 /* Consumers utilities */
 
 static int awaitingConsumers = 0;
-static Semaphore awaitingConsumersLock = Semaphore(1);
+static Semaphore awaitingConsumersLock = Semaphore(0);
+static Semaphore awaitingConsumersCountLock = Semaphore(1);
 
 void increaseAwaitingConsumers()
 {
-	awaitingConsumersLock.p();
+	awaitingConsumersCountLock.p();
 	++awaitingConsumers;
-	awaitingConsumersLock.v();
+	awaitingConsumersCountLock.v();
 }
 
 void decreaseAwaitingConsumers()
 {
-	awaitingConsumersLock.p();
+	awaitingConsumersCountLock.p();
 	--awaitingConsumers;
-	awaitingConsumersLock.v();
+	awaitingConsumersCountLock.v();
 }
 
 bool isZeroAwaitingConsumers()
 {
 	bool isZero;
-	awaitingConsumersLock.p();
+	awaitingConsumersCountLock.p();
 	isZero = awaitingConsumers == 0;
-	awaitingConsumersLock.v();
+	awaitingConsumersCountLock.v();
 	return isZero;
 }
 
 /* Producers utilities */
 
 static int awaitingProducers = 0;
-static Semaphore awaitingProducersLock = Semaphore(1);
+static Semaphore awaitingProducersLock = Semaphore(0);
+static Semaphore awaitingProducersCountLock = Semaphore(1);
 
 void increaseAwaitingProducers()
 {
-	awaitingProducersLock.p();
+	awaitingProducersCountLock.p();
 	++awaitingProducers;
-	awaitingProducersLock.v();
+	awaitingProducersCountLock.v();
 }
 
 void decreaseAwaitingProducers()
 {
-	awaitingProducersLock.p();
+	awaitingProducersCountLock.p();
 	--awaitingProducers;
-	awaitingProducersLock.v();
+	awaitingProducersCountLock.v();
 }
 
 bool isZeroAwaitingProducers()
 {
 	bool isZero;
-	awaitingProducersLock.p();
+	awaitingProducersCountLock.p();
 	isZero = awaitingProducers == 0;
-	awaitingProducersLock.v();
+	awaitingProducersCountLock.v();
 	return isZero;
 }
