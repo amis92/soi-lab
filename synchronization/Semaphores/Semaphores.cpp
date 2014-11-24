@@ -78,6 +78,59 @@ void printP(int id, const char* output, char c)
 	ioMutex.v();
 }
 
+void produce(int id, char product)
+{
+	mutex.p();
+	if (!canProduce() || !isZeroAwaitingConsumers() && canConsume())
+	{
+		printP(id, "can't produce, WAITING.");
+		increaseAwaitingProducers();
+		mutex.v();
+		awaitingProducersLock.p();
+		printP(id, "WAKED, producing.");
+		decreaseAwaitingProducers();
+	}
+	push(product);
+	printP(id, "produced ", product);
+	if (!isZeroAwaitingConsumers() && canConsume())
+	{
+		printP(id, "waking consumers.");
+		awaitingConsumersLock.v();
+	}
+	else
+	{
+		mutex.v();
+	}
+}
+
+void consume(int id)
+{
+	char result;
+	mutex.p();
+	if (!canConsume())
+	{
+		printC(id, "can't consume, WAITING.");
+		increaseAwaitingConsumers();
+		mutex.v();
+		awaitingConsumersLock.p();
+		printC(id, "WAKED, consuming.");
+		decreaseAwaitingConsumers();
+	}
+
+	result = pop();
+	printC(id, "consumed ", result);
+	if ((isZeroAwaitingConsumers() || !canConsume())
+		&& !isZeroAwaitingProducers() && canProduce())
+	{
+		printC(id, "waking producers.");
+		awaitingProducersLock.v();
+	}
+	else
+	{
+		mutex.v();
+	}
+}
+
 DWORD WINAPI Producer(_In_ LPVOID lpParameter)
 {
 	int id = reinterpret_cast<int>(lpParameter);
@@ -87,27 +140,7 @@ DWORD WINAPI Producer(_In_ LPVOID lpParameter)
 	{
 		while (!isExitRequest)
 		{
-			mutex.p();
-			if (!canProduce() || !isZeroAwaitingConsumers() && canConsume())
-			{
-				printP(id, "can't produce, WAITING.");
-				increaseAwaitingProducers();
-				mutex.v();
-				awaitingProducersLock.p();
-				printP(id, "WAKED, producing.");
-				decreaseAwaitingProducers();
-			}
-			push(product);
-			printP(id, "produced ", product);
-			if (!isZeroAwaitingConsumers() && canConsume())
-			{
-				printP(id, "waking consumers.");
-				awaitingConsumersLock.v();
-			}
-			else
-			{
-				mutex.v();
-			}
+			produce(id, product);
 			product = product == 'Z' ? 'A' : (product == 'z' ? 'a' : (product + 1));
 		}
 	}
@@ -122,35 +155,12 @@ DWORD WINAPI Producer(_In_ LPVOID lpParameter)
 DWORD WINAPI Consumer(_In_ LPVOID lpParameter)
 {
 	int id = reinterpret_cast<int>(lpParameter);
-	char result;
 	printC(id, "started.");
 	try
 	{
 		while (!isExitRequest)
 		{
-			mutex.p();
-			if (!canConsume())
-			{
-				printC(id, "can't consume, WAITING.");
-				increaseAwaitingConsumers();
-				mutex.v();
-				awaitingConsumersLock.p();
-				printC(id, "WAKED, consuming.");
-				decreaseAwaitingConsumers();
-			}
-
-			result = pop();
-			printC(id, "consumed ", result);
-			if ((isZeroAwaitingConsumers() || !canConsume())
-				&& !isZeroAwaitingProducers() && canProduce())
-			{
-				printC(id, "waking producers.");
-				awaitingProducersLock.v();
-			}
-			else
-			{
-				mutex.v();
-			}
+			consume(id);
 		}
 	}
 	catch (...)
