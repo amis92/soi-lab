@@ -1,5 +1,33 @@
 #pragma once
 
+/* Consumers mutex utilities */
+
+static int awaitingMutexConsumers = 0;
+static Semaphore mutexAwaitingConsumersCountLock = Semaphore(1);
+
+void increaseMutexAwaitingConsumers()
+{
+	mutexAwaitingConsumersCountLock.p();
+	++awaitingMutexConsumers;
+	mutexAwaitingConsumersCountLock.v();
+}
+
+void decreaseMutexAwaitingConsumers()
+{
+	mutexAwaitingConsumersCountLock.p();
+	--awaitingMutexConsumers;
+	mutexAwaitingConsumersCountLock.v();
+}
+
+bool isZeroMutexAwaitingConsumers()
+{
+	bool isZero;
+	mutexAwaitingConsumersCountLock.p();
+	isZero = awaitingMutexConsumers == 0;
+	mutexAwaitingConsumersCountLock.v();
+	return isZero;
+}
+
 /* Consumers utilities */
 
 static int awaitingConsumers = 0;

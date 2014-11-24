@@ -44,11 +44,21 @@ bool canConsume()
 	return !BufferOf7<char>::isEmpty();
 }
 
+/* mutex awaiting mutex */
+static Semaphore mutexAwaitingLock = Semaphore(1);
+
 /* critical section mutex */
 static Semaphore mutex = Semaphore(1);
 
 /* input/output mutex */
 static Semaphore ioMutex = Semaphore(1);
+
+void print(int id, const char* output)
+{
+	ioMutex.p();
+	std::cout << "Thread id=" << id << " says: " << output << std::endl;
+	ioMutex.v();
+}
 
 void printC(int id, const char* output)
 {
@@ -78,10 +88,30 @@ void printP(int id, const char* output, char c)
 	ioMutex.v();
 }
 
+void releaseMutex(int id)
+{
+	if (!isZeroAwaitingConsumers() && canConsume())
+	{
+		print(id, "waking consumers.");
+		awaitingConsumersLock.v();
+	}
+	else if (!isZeroAwaitingProducers && canProduce())
+	{
+		print(id, "waking producers.");
+		awaitingProducersLock.v();
+	}
+	else
+	{
+		mutex.v();
+	}
+}
+
 void produce(int id, char product)
 {
 	mutex.p();
-	if (!canProduce() || !isZeroAwaitingConsumers() && canConsume())
+	if (!canProduce()
+		|| (!isZeroMutexAwaitingConsumers() || !isZeroAwaitingConsumers())
+		&& canConsume())
 	{
 		printP(id, "can't produce, WAITING.");
 		increaseAwaitingProducers();
@@ -92,43 +122,29 @@ void produce(int id, char product)
 	}
 	push(product);
 	printP(id, "produced ", product);
-	if (!isZeroAwaitingConsumers() && canConsume())
-	{
-		printP(id, "waking consumers.");
-		awaitingConsumersLock.v();
-	}
-	else
-	{
-		mutex.v();
-	}
+	releaseMutex(id);
 }
 
 void consume(int id)
 {
 	char result;
+	increaseMutexAwaitingConsumers();
 	mutex.p();
+	decreaseMutexAwaitingConsumers();
 	if (!canConsume())
 	{
 		printC(id, "can't consume, WAITING.");
 		increaseAwaitingConsumers();
 		mutex.v();
 		awaitingConsumersLock.p();
-		printC(id, "WAKED, consuming.");
 		decreaseAwaitingConsumers();
+		printC(id, "WAKED, consuming.");
 	}
 
 	result = pop();
 	printC(id, "consumed ", result);
-	if ((isZeroAwaitingConsumers() || !canConsume())
-		&& !isZeroAwaitingProducers() && canProduce())
-	{
-		printC(id, "waking producers.");
-		awaitingProducersLock.v();
-	}
-	else
-	{
-		mutex.v();
-	}
+
+	releaseMutex(id);
 }
 
 DWORD WINAPI Producer(_In_ LPVOID lpParameter)
