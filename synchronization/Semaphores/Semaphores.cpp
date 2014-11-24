@@ -19,8 +19,8 @@
 
 #include "BufferOf7.h"
 #include "CountingUtils.h"
+#include "Print.h"
 
-static bool isExitRequest = false;
 
 /* buffer declarations */
 
@@ -44,49 +44,9 @@ bool canConsume()
 	return !BufferOf7<char>::isEmpty();
 }
 
-/* mutex awaiting mutex */
-static Semaphore mutexAwaitingLock = Semaphore(1);
-
 /* critical section mutex */
 static Semaphore mutex = Semaphore(1);
 
-/* input/output mutex */
-static Semaphore ioMutex = Semaphore(1);
-
-void print(int id, const char* output)
-{
-	ioMutex.p();
-	std::cout << "Thread id=" << id << " says: " << output << std::endl;
-	ioMutex.v();
-}
-
-void printC(int id, const char* output)
-{
-	ioMutex.p();
-	std::cout << "Consumer id=" << id << " says: " << output << std::endl;
-	ioMutex.v();
-}
-
-void printC(int id, const char* output, char c)
-{
-	ioMutex.p();
-	std::cout << "Consumer id=" << id << " says: " << output << c << std::endl;
-	ioMutex.v();
-}
-
-void printP(int id, const char* output)
-{
-	ioMutex.p();
-	std::cout << "Producer id=" << id << " says: " << output << std::endl;
-	ioMutex.v();
-}
-
-void printP(int id, const char* output, char c)
-{
-	ioMutex.p();
-	std::cout << "Producer id=" << id << " says: " << output << c << std::endl;
-	ioMutex.v();
-}
 
 void releaseMutex(int id)
 {
@@ -122,6 +82,7 @@ void produce(int id, char product)
 	}
 	push(product);
 	printP(id, "produced ", product);
+
 	releaseMutex(id);
 }
 
@@ -146,6 +107,8 @@ void consume(int id)
 
 	releaseMutex(id);
 }
+
+static bool isExitRequest = false;
 
 DWORD WINAPI Producer(_In_ LPVOID lpParameter)
 {
