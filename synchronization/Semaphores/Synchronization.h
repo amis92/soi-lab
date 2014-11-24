@@ -38,7 +38,7 @@ void releaseMutex(int id)
 		print(id, "waking consumers.");
 		awaitingConsumersLock.v();
 	}
-	else if (!isZeroAwaitingProducers && canProduce())
+	else if (!isZeroAwaitingProducers() && canProduce())
 	{
 		print(id, "waking producers.");
 		awaitingProducersLock.v();
