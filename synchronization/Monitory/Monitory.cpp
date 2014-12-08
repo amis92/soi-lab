@@ -98,7 +98,6 @@ bool exec()
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	BufferOf7<char>::init();
 	for (int i = 0; i < PRODUCERS_COUNT + CONSUMERS_COUNT; ++i)
 	{
 		threadSemaphores[i] = new Semaphore(0);

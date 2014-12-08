@@ -5,51 +5,76 @@ template <typename T>
 * Static circled buffer with just isEmpty, isFull, push, pop operations.
 * init() clears buffer.
 */
-class BufferOf7
+class BufferOf7 : private Monitor
 {
 
 private:
 	/* position of first element to pop */
-	static int _begin;
+	int _begin;
 	/* first free position */
-	static int _end;
+	int _end;
 	/* number of available slots*/
-	static const int _size = 7;
+	static const int MY_BUFFER_SIZE = 7;
 	/* buffer holding elements */
-	static T _buffer[_size];
+	T _buffer[MY_BUFFER_SIZE];
+
+	Condition _consumers, _producers;
+
+	int _waitingConsumers;
 
 	/* increases value by 1 and does modulo size */
-	static int modIncrement(int value);
+	int modIncrement(int value);
+
+	void doPush(T item);
+
+	T doPop();
+
+	void doSignaling();
 
 public:
-	static void init();
+	BufferOf7();
 
-	static bool isEmpty();
+	bool isEmpty();
 
-	static bool isFull();
+	bool isFull();
 
-	static void push(T item);
+	void push(T item);
 
-	static T pop();
+	T pop();
 };
-
-template <typename T>
-int BufferOf7<T>::_begin = 0;
-
-template <typename T>
-int BufferOf7<T>::_end = 0;
-
-template <typename T>
-char BufferOf7<T>::_buffer[_size];
 
 template <typename T>
 int BufferOf7<T>::modIncrement(int value)
 {
-	return value == _size ? 0 : value + 1;
+	return value == MY_BUFFER_SIZE ? 0 : value + 1;
 }
 
 template <typename T>
-void BufferOf7<T>::init()
+void BufferOf7<T>::doPush(T item)
+{
+	_buffer[_end] = item;
+	_end = modIncrement(_end);
+}
+
+template <typename T>
+T BufferOf7<T>::doPop()
+{
+	T item = _buffer[_begin];
+	_begin = modIncrement(_begin);
+	return item;
+}
+
+template <typename T>
+void BufferOf7<T>::doSignaling()
+{
+	if (!isEmpty() && _waitingConsumers > 0)
+		signal(_consumers);
+	else if (!isFull())
+		signal(_producers);
+}
+
+template <typename T>
+BufferOf7<T>::BufferOf7()
 {
 	_begin = 0;
 	_end = 0;
@@ -70,14 +95,26 @@ bool BufferOf7<T>::isFull()
 template <typename T>
 void BufferOf7<T>::push(T item)
 {
-	_buffer[_end] = item;
-	_end = modIncrement(_end);
+	enter();
+	if (isFull() || _waitingConsumers > 0)
+		wait(_producers);
+	doPush(item);
+	doSignaling();
+	leave();
 }
 
 template <typename T>
 T BufferOf7<T>::pop()
 {
-	T item = _buffer[_begin];
-	_begin = modIncrement(_begin);
+	enter();
+	if (isEmpty())
+	{
+		++_waitingConsumers;
+		wait(_consumers);
+		--_waitingConsumers;
+	}
+	T item = doPop();
+	doSignaling();
+	leave();
 	return item;
 }
