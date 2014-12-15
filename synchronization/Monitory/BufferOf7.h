@@ -18,6 +18,8 @@ private:
 	/* buffer holding elements */
 	T _buffer[MY_BUFFER_SIZE];
 
+	ConsumerAwait _consumerAwait;
+
 	Condition _consumers, _producers;
 
 	int _waitingConsumers;
@@ -41,6 +43,8 @@ public:
 	void push(T item);
 
 	T pop();
+
+	ConsumerAwait* consumerAwait();
 };
 
 template <typename T>
@@ -65,15 +69,6 @@ T BufferOf7<T>::doPop()
 }
 
 template <typename T>
-void BufferOf7<T>::doSignaling()
-{
-	if (!isEmpty() && _waitingConsumers > 0)
-		signal(_consumers);
-	else if (!isFull())
-		signal(_producers);
-}
-
-template <typename T>
 BufferOf7<T>::BufferOf7()
 {
 	_begin = 0;
@@ -93,10 +88,17 @@ bool BufferOf7<T>::isFull()
 }
 
 template <typename T>
+ConsumerAwait* BufferOf7<T>::consumerAwait()
+{
+	return &_consumerAwait;
+};
+
+template <typename T>
 void BufferOf7<T>::push(T item)
 {
 	enter();
-	if (isFull() || _waitingConsumers > 0)
+	if ((!_consumerAwait.isZero() && !isEmpty())
+		|| isFull() || _waitingConsumers > 0)
 		wait(_producers);
 	doPush(item);
 	doSignaling();
@@ -114,7 +116,17 @@ T BufferOf7<T>::pop()
 		--_waitingConsumers;
 	}
 	T item = doPop();
+	_consumerAwait.dec();
 	doSignaling();
 	leave();
 	return item;
+}
+
+template <typename T>
+void BufferOf7<T>::doSignaling()
+{
+	if (!isEmpty() && _waitingConsumers > 0)
+		signal(_consumers);
+	else if (!isFull())
+		signal(_producers);
 }

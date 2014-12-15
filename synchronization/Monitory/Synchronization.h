@@ -1,9 +1,12 @@
 #pragma once
 
+#include "ConsumerAwait.h"
 #include "BufferOf7.h"
 #include "Print.h"
 
+
 BufferOf7<char> buffer;
+ConsumerAwait* consumerAwait = buffer.consumerAwait();
 
 /* buffer declarations */
 
@@ -27,6 +30,7 @@ void produce(int id, char product)
 void consume(int id)
 {
 	char result;
+	consumerAwait->inc();
 	result = pop();
 	printC(id, "consumed ", result);
 }
